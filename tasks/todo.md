@@ -43,6 +43,9 @@
 - [x] `npm run build` — compiles + generates all 13 routes
 - [x] `python run_eval.py --help` — shows usage
 
+## Backlog
+- [ ] Document status polling — auto-refresh document list while any document is in "Processing"/"Embedding" state (poll every ~5s, stop when all are "Ready" or "Error")
+
 ## Review
 All three phases implemented and verified. The build passes cleanly with:
 - 13 LLM call sites instrumented with Langfuse telemetry

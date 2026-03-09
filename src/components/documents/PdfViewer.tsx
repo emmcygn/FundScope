@@ -99,9 +99,12 @@ export function PdfViewer({
   )
 
   return (
-    <div className={cn('h-full w-full relative', className)}>
+    // pdfjs requires the viewer container to be position:absolute.
+    // We wrap it in a relative div to give it a positioning context.
+    <div className={cn('h-full w-full relative overflow-hidden', className)}>
       <PdfLoader
         document={url}
+        workerSrc="/pdf.worker.min.mjs"
         beforeLoad={() => <PdfLoadingSkeleton />}
         errorMessage={(error) => (
           <div className="flex items-center justify-center h-full p-8 text-sm text-red-600">
@@ -118,9 +121,12 @@ export function PdfViewer({
             onSelection={handleSelection}
             textSelectionColor="rgba(59, 130, 246, 0.3)"
             style={{
-              height: '100%',
-              width: '100%',
-              position: 'relative',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              overflow: 'auto',
             }}
           >
             <HighlightRenderer />

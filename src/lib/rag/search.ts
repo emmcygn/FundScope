@@ -110,13 +110,32 @@ async function bm25Search(
 ): Promise<SearchResult[]> {
   const supabase = createAdminClient()
 
-  // Convert query to tsquery format: split words, filter short ones, join with &
-  const tsQuery = query
+  // Stop words to remove — these appear in user questions but not in legal text,
+  // so AND-ing them produces zero results. Keep legal abbreviations like GP/LP.
+  const STOP_WORDS = new Set([
+    'what', 'whats', 'is', 'are', 'the', 'a', 'an', 'do', 'does', 'did',
+    'how', 'when', 'where', 'which', 'who', 'why', 'can', 'will', 'would',
+    'should', 'could', 'may', 'might', 'this', 'that', 'there', 'their',
+    'with', 'for', 'not', 'but', 'any', 'all', 'has', 'have', 'been',
+    'was', 'were', 'be', 'by', 'of', 'in', 'on', 'at', 'to', 'from',
+    'and', 'or', 'if', 'its', 'it', 'me', 'my', 'we', 'our', 'about',
+    'into', 'than', 'then', 'so', 'also', 'just', 'between', 'during',
+    'within', 'without', 'under', 'over', 'after', 'before', 'as', 'per',
+    'each', 'such', 'no', 'yes', 'i', 'you', 'they', 'them', 'he', 'she',
+  ])
+
+  // Use OR (|) instead of AND (&): legal sections split terms across chunks
+  // (e.g. "Management Fee" header in chunk A, the actual rate in chunk B).
+  // OR recovers both; Cohere reranker + grader filter noise downstream.
+  // Keep word length > 1 so "GP" and "LP" are included.
+  const terms = query
+    .toLowerCase()
     .split(/\s+/)
-    .filter(word => word.length > 2)
     .map(word => word.replace(/[^\w]/g, ''))
-    .filter(Boolean)
-    .join(' & ')
+    .filter(word => word.length > 1 && !STOP_WORDS.has(word))
+    .slice(0, 10) // cap to avoid tsquery length limits
+
+  const tsQuery = terms.join(' | ')
 
   if (!tsQuery) return []
 

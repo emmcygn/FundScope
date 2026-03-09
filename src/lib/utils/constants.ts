@@ -51,9 +51,9 @@ export const DOC_TYPE_LABELS: Record<string, string> = {
 
 // Chunk configuration
 export const CHUNK_CONFIG = {
-  maxSize: 800,
-  overlap: 100,
-  minSize: 100,
+  maxSize: 1200, // Increased from 800 — keeps legal sub-sections together
+  overlap: 200,  // Increased from 100 — more cross-boundary context
+  minSize: 50,   // Decreased from 100 — don't discard short but important headers
 } as const
 
 // Embedding configuration
@@ -64,8 +64,8 @@ export const EMBEDDING_CONFIG = {
 
 // Search configuration
 export const SEARCH_CONFIG = {
-  topK: 20,             // Initial retrieval count
-  rerankTopK: 5,        // After reranking
+  topK: 30,             // Initial retrieval count (increased from 20 for better recall)
+  rerankTopK: 10,       // After reranking (increased from 5 — correct chunk was being cut)
   similarityThreshold: 0.3,
   bm25Weight: 0.3,      // Weight for keyword search in hybrid
   denseWeight: 0.7,     // Weight for vector search in hybrid

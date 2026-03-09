@@ -32,14 +32,28 @@ export async function POST(request: Request) {
   }
 
   // 2. Parse request
-  const { messages, fundId } = await request.json()
+  const { messages: rawMessages, fundId } = await request.json()
+
+  // AI SDK v5 useChat sends messages with `parts` instead of `content`.
+  // Convert to the ModelMessage format that generateText/streamText expect.
+  const messages = rawMessages.map((msg: Record<string, unknown>) => {
+    if (msg.content !== undefined) return msg
+    // Extract text from parts array
+    const parts = msg.parts as Array<{ type: string; text?: string }> | undefined
+    const text = parts
+      ?.filter((p) => p.type === 'text')
+      .map((p) => p.text)
+      .join('') ?? ''
+    return { role: msg.role, content: text }
+  })
+
   const lastMessage = messages[messages.length - 1]
 
   if (!lastMessage || lastMessage.role !== 'user') {
     return new Response('Invalid message format', { status: 400 })
   }
 
-  const userQuery: string = lastMessage.content
+  const userQuery: string = lastMessage.content as string
 
   // Langfuse trace for this request
   const langfuse = getLangfuse()
@@ -115,24 +129,23 @@ export async function POST(request: Request) {
   })
   await flushLangfuse()
 
+  // Encode citations as a compact marker appended to the response text.
+  // Embedding in the body is more reliable than headers for streaming responses.
+  const citationsMarker = citations.length > 0
+    ? `\n[CITES:${Buffer.from(JSON.stringify(citations)).toString('base64')}]`
+    : ''
+
   if (finalAnswer !== null) {
-    // We have a verified answer — stream it as a simple text response
-    const response = new Response(finalAnswer, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'x-citations': JSON.stringify(citations),
-        'x-query-type': routing.queryType,
-      },
+    // We have a verified answer — return as plain text with citations appended
+    return new Response(finalAnswer + citationsMarker, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     })
-    return response
   }
 
-  // Fallback: stream directly (no hallucination checking)
+  // Fallback: stream directly (no hallucination checking), append citations at end
   const result = generateStreamingAnswer(messages, context)
-  const response = result.toTextStreamResponse()
-  response.headers.set('x-citations', JSON.stringify(citations))
-  response.headers.set('x-query-type', routing.queryType)
-  return response
+  const streamResponse = result.toTextStreamResponse()
+  return appendTextToStream(streamResponse, citationsMarker)
 }
 
 /**
@@ -213,4 +226,38 @@ async function generateAndVerify(
   }
 
   return null
+}
+
+/**
+ * Pipes a streaming Response through a TransformStream that appends `suffix`
+ * as a final text chunk after the original stream ends.
+ */
+function appendTextToStream(response: Response, suffix: string): Response {
+  if (!suffix || !response.body) return response
+
+  const encoder = new TextEncoder()
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
+
+  // Pipe original body, then write suffix, then close — in the background
+  ;(async () => {
+    const writer = writable.getWriter()
+    const reader = response.body!.getReader()
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        await writer.write(value)
+      }
+      await writer.write(encoder.encode(suffix))
+    } catch {
+      // Stream errors are propagated to the consumer via the readable side
+    } finally {
+      writer.close()
+    }
+  })()
+
+  return new Response(readable, {
+    headers: response.headers,
+    status: response.status,
+  })
 }

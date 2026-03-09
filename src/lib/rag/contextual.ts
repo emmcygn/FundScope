@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
+import { openai } from '@ai-sdk/openai'
 import type { Chunk } from './chunker'
 
 /**
@@ -67,22 +67,36 @@ async function generateContextSummary(
   chunk: Chunk,
   documentTitle: string,
   documentType: string,
-  fullTextPreview: string
+  _fullTextPreview: string // kept for API compatibility but no longer used in prompt
 ): Promise<string> {
+  const location = [
+    chunk.sectionNumber ? `Section ${chunk.sectionNumber}` : null,
+    chunk.pageNumber != null ? `page ${chunk.pageNumber}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+
   const { text } = await generateText({
-    model: anthropic('claude-sonnet-4-20250514'),
-    maxOutputTokens: 150,
+    model: openai('gpt-4o-mini'),
+    maxOutputTokens: 250,
     temperature: 0,
     experimental_telemetry: { isEnabled: true, functionId: 'context-summary' },
-    prompt: `You are a legal document analyst. Given the following chunk from a ${documentType} titled "${documentTitle}", write a brief (1-2 sentence) context summary that would help someone understand what this chunk is about without seeing the rest of the document.
+    prompt: `You are a legal document analyst specialising in private equity fund documents.
 
-Document preview (first section):
-${fullTextPreview.slice(0, 1500)}
+Document: "${documentTitle}" (${documentType})
+Location: ${location || 'unknown location'}
 
-Chunk (from ${chunk.sectionNumber ? `Section ${chunk.sectionNumber}` : 'the document'}, page ${chunk.pageNumber ?? 'unknown'}):
-${chunk.text.slice(0, 500)}
+Chunk text:
+"""
+${chunk.text}
+"""
 
-Write ONLY the context summary, nothing else. Be specific about parties, clause types, and legal concepts mentioned.`,
+Write a 2–3 sentence context summary for this chunk. Rules:
+1. You MUST quote or paraphrase every specific rate, percentage, dollar amount, date, threshold, or defined term that appears (e.g. "1.75% per annum", "Commitment Period", "Advisory Committee").
+2. Name the legal concept or clause type (e.g. "management fee step-down", "key person provision", "distribution waterfall").
+3. Identify the parties affected if mentioned (e.g. "General Partner", "Limited Partners").
+4. Do NOT use generic phrases like "this section describes" or "this clause outlines" — be specific.
+5. Write ONLY the summary, no preamble.`,
   })
 
   return text.trim()

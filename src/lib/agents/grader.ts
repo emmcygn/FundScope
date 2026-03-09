@@ -3,6 +3,12 @@ import { openai } from '@ai-sdk/openai'
 import { z } from 'zod'
 import type { SearchResult } from '@/lib/rag/search'
 
+/** Strips the "[Context: ...]\n\n" prefix added by contextual enrichment. */
+function stripContextPrefix(text: string): string {
+  const match = text.match(/^\[Context:[^\]]*\]\n\n([\s\S]*)$/m)
+  return match?.[1]?.trim() ?? text.trim()
+}
+
 const chunkGradeSchema = z.object({
   relevant: z.boolean().describe('Whether this chunk is relevant to answering the query'),
 })
@@ -44,7 +50,7 @@ User query: "${query}"
 
 Document chunk:
 """
-${chunk.text}
+${stripContextPrefix(chunk.text)}
 """
 
 Is this chunk relevant to answering the query?`,

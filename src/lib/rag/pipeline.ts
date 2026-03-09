@@ -56,6 +56,23 @@ export async function ingestDocument(params: IngestDocumentParams): Promise<Inge
       throw new DocumentProcessingError('Document produced no chunks after processing')
     }
 
+    // Coverage gate: flag suspiciously low chunk counts.
+    // A real LPA page contains ~500-800 words; with maxSize=1200 tokens we expect
+    // at least 0.5 chunks per page on average. Fewer suggests incomplete extraction
+    // (e.g. image-only pages, Form XObject content, or encrypted text layers).
+    const minExpectedChunks = Math.max(1, Math.floor(parsed.pageCount * 0.5))
+    if (chunks.length < minExpectedChunks) {
+      console.warn(
+        `[ingestion] Low coverage: ${chunks.length} chunks for ${parsed.pageCount}-page document ` +
+        `(expected ≥ ${minExpectedChunks}). Some content may not be retrievable.`
+      )
+      // Store a warning in metadata but continue — partial extraction is better than nothing
+      await supabase
+        .from('documents')
+        .update({ metadata: { ...parsed.metadata, extractionWarning: 'low_coverage' } })
+        .eq('id', documentId)
+    }
+
     // Stage: Embedding (includes contextual enrichment)
     await updateDocumentStatus(supabase, documentId, 'embedding')
 
@@ -84,7 +101,7 @@ export async function ingestDocument(params: IngestDocumentParams): Promise<Inge
       page_number: chunk.pageNumber,
       char_start: chunk.charStart,
       char_end: chunk.charEnd,
-      metadata: chunk.metadata,
+      metadata: { ...chunk.metadata, printed_page: chunk.printedPageNumber ?? null },
     }))
 
     // Insert in batches of 50 (Supabase has payload size limits)

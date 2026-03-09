@@ -33,7 +33,7 @@ export async function checkHallucinations(
   const { object } = await generateObject({
     model: anthropic('claude-sonnet-4-20250514'),
     schema: claimCheckSchema,
-    maxOutputTokens: 1000,
+    maxOutputTokens: 4000,
     temperature: 0,
     experimental_telemetry: { isEnabled: true, functionId: 'check-hallucinations' },
     prompt: `You are a hallucination checker for a legal AI assistant. Your job is to verify that every factual claim in the generated answer is supported by the provided source context.

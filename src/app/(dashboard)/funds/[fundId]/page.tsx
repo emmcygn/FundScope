@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, use } from 'react'
+import { useEffect, useState, useCallback, useRef, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -10,6 +10,9 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { ChatInterface } from '@/components/chat/ChatInterface'
+import { type Citation } from '@/components/chat/CitationLink'
+import { PdfViewer, createHighlightFromCitation, type AnnotatedHighlight } from '@/components/documents/PdfViewer'
+import type { PdfHighlighterUtils } from 'react-pdf-highlighter-extended'
 import { toast } from 'sonner'
 import {
   FileText,
@@ -18,6 +21,8 @@ import {
   FileSearch,
   AlertTriangle,
   ClipboardList,
+  X,
+  Trash2,
 } from 'lucide-react'
 
 interface Fund {
@@ -50,6 +55,23 @@ export default function FundDetailPage({
   const [documents, setDocuments] = useState<Document[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  // PDF viewer split-panel state
+  const [showPdfPanel, setShowPdfPanel] = useState(false)
+  const [activePdfUrl, setActivePdfUrl] = useState<string | null>(null)
+  const [activeDocId, setActiveDocId] = useState<string | null>(null)
+  const [activeDocName, setActiveDocName] = useState<string>('')
+  const [citationHighlights, setCitationHighlights] = useState<AnnotatedHighlight[]>([])
+  // Incremented on every citation click to force a clean PdfViewer remount.
+  // This avoids react-pdf-highlighter-extended's createRoot() conflicts and
+  // pdfjs offsetParent errors that occur when reusing the same viewer instance.
+  const [pdfViewerKey, setPdfViewerKey] = useState(0)
+  const highlighterUtilsRef = useRef<PdfHighlighterUtils | null>(null)
+  // Highlight to scroll to once the fresh viewer fires onUtilsReady
+  const pendingScrollRef = useRef<AnnotatedHighlight | null>(null)
+  // Monotonically increasing counter — incremented on every citation click.
+  // Used to cancel stale scroll timeouts when the user clicks rapidly.
+  const scrollGenRef = useRef(0)
+
   const fetchFundData = useCallback(async () => {
     const supabase = createClient()
 
@@ -77,6 +99,120 @@ export default function FundDetailPage({
     fetchFundData()
   }, [fetchFundData])
 
+  // Called by PdfHighlighter on every render (utilsRef fires in the render body).
+  // We only scroll once utils.getViewer() is non-null — that's when pdfjs has
+  // finished initialising the PDFViewer and page viewports are available.
+  const handleUtilsReady = useCallback((utils: PdfHighlighterUtils) => {
+    highlighterUtilsRef.current = utils
+
+    if (!pendingScrollRef.current) return          // nothing to scroll to
+    if (!utils.getViewer()) return                 // viewer not initialised yet — wait for next call
+
+    // Viewer is ready. Capture pending target and clear the ref so later
+    // handleUtilsReady calls (from re-renders) don't re-schedule the scroll.
+    const pending = pendingScrollRef.current
+    pendingScrollRef.current = null
+    const gen = scrollGenRef.current
+
+    // Small delay lets pdfjs finish its initial page layout before we try to
+    // call scrollPageIntoView on a page whose viewport may not exist yet.
+    setTimeout(() => {
+      if (scrollGenRef.current !== gen) return     // user clicked again — skip stale scroll
+      try {
+        // scrollPageIntoView is more reliable than scrollToHighlight for
+        // freshly-loaded PDFs — it only needs the page number, not scaled coords.
+        const pageNumber = pending.position.boundingRect.pageNumber
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const viewer = (highlighterUtilsRef.current?.getViewer() as any)
+        if (viewer && pageNumber) {
+          viewer.scrollPageIntoView({ pageNumber })
+        } else {
+          highlighterUtilsRef.current?.scrollToHighlight(pending)
+        }
+      } catch { /* page not yet rendered — scroll is best-effort */ }
+    }, 400)
+  }, [])
+
+  /**
+   * Handle a citation click from the chat interface.
+   *
+   * Same-document (panel already open): skip remounting — just update the
+   * highlight overlay and call scrollPageIntoView on the live viewer.
+   * Remounting on every same-doc click caused the PDF to reload from scratch,
+   * losing the scroll timing race and always landing on the default page.
+   *
+   * New document (or panel closed): remount the viewer with the new URL so
+   * react-pdf-highlighter gets a clean React root, then scroll via
+   * handleUtilsReady once pdfjs signals the viewer is initialised.
+   */
+  const handleCitationClick = useCallback(async (citation: Citation) => {
+    if (!citation.pageNumber) {
+      toast.error('This citation has no page reference')
+      return
+    }
+
+    const highlight = createHighlightFromCitation(citation)
+    if (!highlight) return
+
+    // Monotonically increment so stale scroll timeouts can self-cancel
+    scrollGenRef.current++
+    const gen = scrollGenRef.current
+
+    if (activeDocId === citation.documentId && activePdfUrl && showPdfPanel) {
+      // PDF is already loaded and visible — scroll directly without remounting
+      setCitationHighlights([highlight])
+      setTimeout(() => {
+        if (scrollGenRef.current !== gen) return
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const viewer = (highlighterUtilsRef.current?.getViewer() as any)
+          if (viewer && citation.pageNumber) {
+            viewer.scrollPageIntoView({ pageNumber: citation.pageNumber })
+          } else {
+            highlighterUtilsRef.current?.scrollToHighlight(highlight)
+          }
+        } catch { /* best effort */ }
+      }, 50)
+      return
+    }
+
+    // Panel closed or different document — (re)mount the viewer
+    highlighterUtilsRef.current = null
+    pendingScrollRef.current = highlight
+
+    if (activeDocId === citation.documentId && activePdfUrl) {
+      // Same document, panel was closed — remount to reopen
+      setCitationHighlights([highlight])
+      setPdfViewerKey((k) => k + 1)
+      setShowPdfPanel(true)
+      return
+    }
+
+    // Different document — fetch a signed URL first
+    try {
+      const res = await fetch(`/api/documents/${citation.documentId}/url`)
+      if (!res.ok) {
+        toast.error('Failed to load document')
+        return
+      }
+
+      const data = await res.json() as {
+        signedUrl: string
+        documentName: string
+        pageCount: number | null
+      }
+
+      setActivePdfUrl(data.signedUrl)
+      setActiveDocId(citation.documentId)
+      setActiveDocName(data.documentName)
+      setCitationHighlights([highlight])
+      setPdfViewerKey((k) => k + 1)
+      setShowPdfPanel(true)
+    } catch {
+      toast.error('Failed to load document')
+    }
+  }, [activeDocId, activePdfUrl, showPdfPanel])
+
   if (isLoading) {
     return <FundDetailSkeleton />
   }
@@ -84,7 +220,7 @@ export default function FundDetailPage({
   if (!fund) return null
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className={`p-6 mx-auto space-y-6 ${showPdfPanel ? 'max-w-[1400px]' : 'max-w-6xl'}`}>
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button
@@ -141,15 +277,53 @@ export default function FundDetailPage({
           />
         </TabsContent>
 
-        {/* Chat tab */}
+        {/* Chat tab — split panel: chat left, PDF right */}
         <TabsContent value="chat">
-          <Card>
-            <CardContent className="p-0">
-              <div className="h-[600px]">
-                <ChatInterface fundId={fundId} />
-              </div>
-            </CardContent>
-          </Card>
+          <div className={`flex gap-4 ${showPdfPanel ? '' : ''}`}>
+            {/* Chat panel */}
+            <Card className={showPdfPanel ? 'w-1/2' : 'w-full'}>
+              <CardContent className="p-0">
+                <div className="h-[600px]">
+                  <ChatInterface
+                    fundId={fundId}
+                    onCitationClick={handleCitationClick}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* PDF panel — shown when a citation is clicked */}
+            {showPdfPanel && activePdfUrl && (
+              <Card className="w-1/2">
+                <CardContent className="p-0 h-[600px] flex flex-col">
+                  {/* PDF header bar */}
+                  <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/50">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm font-medium truncate">{activeDocName}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 flex-shrink-0"
+                      onClick={() => setShowPdfPanel(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {/* PDF viewer */}
+                  <div className="flex-1 overflow-hidden">
+                    <PdfViewer
+                      key={pdfViewerKey}
+                      url={activePdfUrl}
+                      highlights={citationHighlights}
+                      onUtilsReady={handleUtilsReady}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         {/* Extraction tab */}
@@ -178,6 +352,27 @@ function DocumentsPanel({
   onDocumentUploaded: () => void
 }) {
   const [isUploading, setIsUploading] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function handleDelete(docId: string, docName: string) {
+    if (!confirm(`Delete "${docName}"? This will remove all chunks and cannot be undone.`)) return
+
+    setDeletingId(docId)
+    try {
+      const res = await fetch(`/api/documents/${docId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        toast.error(data.error || 'Delete failed')
+        return
+      }
+      toast.success('Document deleted')
+      onDocumentUploaded() // refresh list
+    } catch {
+      toast.error('Delete failed')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -263,7 +458,19 @@ function DocumentsPanel({
                     </div>
                   </div>
                 </div>
-                <ProcessingBadge status={doc.processing_status} />
+                <div className="flex items-center gap-2">
+                  <ProcessingBadge status={doc.processing_status} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    disabled={deletingId === doc.id}
+                    onClick={() => handleDelete(doc.id, doc.name)}
+                    title="Delete document"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}

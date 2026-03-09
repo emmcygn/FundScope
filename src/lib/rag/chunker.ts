@@ -4,6 +4,8 @@ export interface Chunk {
   text: string
   index: number
   pageNumber: number | null
+  /** Printed/footer page number from the source PDF page, if detected. */
+  printedPageNumber: number | null
   sectionNumber: string | null
   clauseId: string | null
   charStart: number
@@ -31,7 +33,7 @@ interface ChunkOptions {
  */
 export function chunkDocument(
   fullText: string,
-  pages: Array<{ pageNumber: number; charStart: number; charEnd: number }>,
+  pages: Array<{ pageNumber: number; printedPageNumber: number | null; charStart: number; charEnd: number }>,
   options: ChunkOptions = {}
 ): Chunk[] {
   const maxSize = options.maxSize ?? CHUNK_CONFIG.maxSize
@@ -81,8 +83,12 @@ function splitOnSectionHeaders(text: string): Array<{
   charStart: number
   sectionNumber: string | null
 }> {
-  // Match common legal document section patterns
-  const sectionPattern = /^(?:(?:ARTICLE|Article|SECTION|Section|SCHEDULE|Schedule|EXHIBIT|Exhibit|APPENDIX|Appendix)\s+[IVXLCDM\d]+\.?\s*[-–—:]?\s*.+)$/gm
+  // Match common legal document section patterns:
+  // 1. Keyword-prefixed: "ARTICLE I", "Section 1.1", "SCHEDULE 1", "EXHIBIT A"
+  // 2. Bare numbered: "9.1 Successor Fund", "10. REMOVAL OF THE GENERAL PARTNER"
+  //    Requires uppercase first word after the number to distinguish from inline text.
+  //    Uses [^\n] instead of \s in char class to prevent matching across lines.
+  const sectionPattern = /^(?:(?:ARTICLE|Article|SECTION|Section|SCHEDULE|Schedule|EXHIBIT|Exhibit|APPENDIX|Appendix)\s+[IVXLCDM\d]+\.?\s*[-–—:]?\s*.+|(?:\d+\.(?:\d+\.?)*)\s+[A-Z][^\n]{3,})$/gm
 
   const sections: Array<{ text: string; charStart: number; sectionNumber: string | null }> = []
   let lastIndex = 0
@@ -124,8 +130,19 @@ function splitOnSectionHeaders(text: string): Array<{
 }
 
 function extractSectionNumber(text: string): string | null {
-  const match = text.match(/^(?:ARTICLE|Article|SECTION|Section)\s+([IVXLCDM\d]+\.?\d*)/m)
-  return match?.[1] ?? null
+  // Only check the FIRST line of the text to avoid picking up inline cross-references
+  // like "Section 6.2 (Terms and Conditions...)" that appear mid-paragraph
+  const firstLine = text.split('\n')[0] ?? ''
+
+  // Match keyword-prefixed headers: "Section 9.1", "ARTICLE IV"
+  const keywordMatch = firstLine.match(/^(?:ARTICLE|Article|SECTION|Section)\s+([IVXLCDM\d]+\.?\d*)/)
+  if (keywordMatch?.[1]) return keywordMatch[1]
+
+  // Match bare numbered headers: "9.1 Successor Fund", "10. REMOVAL"
+  const bareMatch = firstLine.match(/^(\d+(?:\.\d+)*\.?)\s+[A-Z]/)
+  if (bareMatch?.[1]) return bareMatch[1].replace(/\.$/, '') // strip trailing dot
+
+  return null
 }
 
 function recursiveSplit(
@@ -219,15 +236,16 @@ function createChunk(
   charStart: number,
   charEnd: number,
   sectionNumber: string | null,
-  pages: Array<{ pageNumber: number; charStart: number; charEnd: number }>
+  pages: Array<{ pageNumber: number; printedPageNumber: number | null; charStart: number; charEnd: number }>
 ): Chunk {
-  // Find which page this chunk falls on
+  // Find which page this chunk starts on
   const page = pages.find(p => charStart >= p.charStart && charStart < p.charEnd)
 
   return {
     text: text.trim(),
     index,
     pageNumber: page?.pageNumber ?? null,
+    printedPageNumber: page?.printedPageNumber ?? null,
     sectionNumber,
     clauseId: null,
     charStart,

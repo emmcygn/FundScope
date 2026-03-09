@@ -13,14 +13,43 @@ export function formatContext(chunks: SearchResult[]): string {
     .join('\n\n---\n\n')
 }
 
-/** Builds citation metadata for the response header. */
+/**
+ * Strips the "[Context: ...]\n\n" prefix that contextual enrichment prepends
+ * before embedding. Returns the raw document text for display purposes.
+ */
+function stripContextPrefix(text: string): string {
+  // Prefix format: "[Context: <summary>]\n\n<original text>"
+  const match = text.match(/^\[Context:[^\]]*\]\n\n([\s\S]*)$/m)
+  return match?.[1]?.trim() ?? text.trim()
+}
+
+/**
+ * Fixes common UTF-8-decoded-as-Latin-1 artifacts that appear when a PDF's
+ * text encoding is misidentified. The most common patterns are smart quotes
+ * and dashes whose UTF-8 byte sequences (E2 80 xx) get decoded as Latin-1,
+ * producing sequences like â€" (em-dash), â€™ (right single quote), etc.
+ */
+function normalizeEncodingArtifacts(text: string): string {
+  return text
+    .replace(/\u00e2\u0080\u0094/g, '\u2014') // â€" → em-dash
+    .replace(/\u00e2\u0080\u0093/g, '\u2013') // â€" → en-dash
+    .replace(/\u00e2\u0080\u0099/g, '\u2019') // â€™ → right single quote
+    .replace(/\u00e2\u0080\u0098/g, '\u2018') // â€˜ → left single quote
+    .replace(/\u00e2\u0080\u009c/g, '\u201c') // â€œ → left double quote
+    .replace(/\u00e2\u0080\u009d/g, '\u201d') // â€  → right double quote
+    .replace(/\u00e2\u0080\u00a2/g, '\u2022') // â€¢ → bullet
+    .replace(/\u00c2\u00a0/g, ' ')            // Â  → non-breaking space → regular space
+}
+
+/** Builds citation metadata for the response. Uses original text (no prefix) for display. */
 export function buildCitations(chunks: SearchResult[]) {
   return chunks.map((r) => ({
     chunkId: r.chunkId,
     documentId: r.documentId,
-    pageNumber: r.pageNumber,
+    pageNumber: r.pageNumber,                                    // PDF internal — used for navigation
+    printedPage: (r.metadata?.printed_page as number | null) ?? null, // footer number — shown to user
     sectionNumber: r.sectionNumber,
-    text: r.text.slice(0, 200),
+    text: normalizeEncodingArtifacts(stripContextPrefix(r.text)).slice(0, 200),
   }))
 }
 
