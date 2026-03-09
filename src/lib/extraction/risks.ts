@@ -12,7 +12,10 @@ import {
   type RiskSeverity,
 } from './schemas'
 
-const CHUNK_BATCH_SIZE = 10
+// Free-tier rate limit is 30k input tokens/min. Each batch of 4 chunks
+// is ~2-3k tokens; a 5s delay between batches keeps us well under the cap.
+const CHUNK_BATCH_SIZE = 4
+const BATCH_DELAY_MS = 5000
 
 // Severity weights for aggregate scoring
 const SEVERITY_WEIGHTS: Record<string, number> = {
@@ -68,6 +71,11 @@ export async function generateRiskFlags(
         llmFlags.push(...batchFlags)
       } catch (error) {
         console.error(`Risk scanning failed for batch at chunk ${i}:`, error)
+        // Continue with remaining batches
+      }
+      // Throttle to stay under free-tier rate limit (30k input tokens/min)
+      if (i + CHUNK_BATCH_SIZE < chunks.length) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS))
       }
     }
   }

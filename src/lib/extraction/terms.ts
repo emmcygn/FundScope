@@ -9,7 +9,10 @@ import {
   type TermType,
 } from './schemas'
 
-const CHUNK_BATCH_SIZE = 8 // Process chunks in batches to stay within context limits
+// Free-tier rate limit is 30k input tokens/min. Each batch of 4 chunks
+// is ~2-3k tokens; a 5s delay between batches keeps us well under the cap.
+const CHUNK_BATCH_SIZE = 4
+const BATCH_DELAY_MS = 5000
 
 // ── Term type display labels ────────────────────────────────────────────
 
@@ -90,6 +93,10 @@ export async function extractTermsFromDocument(
     } catch (error) {
       console.error(`Extraction failed for batch starting at chunk ${i}:`, error)
       // Continue with remaining batches — partial extraction is better than none
+    }
+    // Throttle to stay under free-tier rate limit (30k input tokens/min)
+    if (i + CHUNK_BATCH_SIZE < chunks.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS))
     }
   }
 

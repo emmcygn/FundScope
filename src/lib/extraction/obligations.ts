@@ -7,7 +7,10 @@ import {
   type ExtractedObligation,
 } from './schemas'
 
-const CHUNK_BATCH_SIZE = 8
+// Free-tier rate limit is 30k input tokens/min. Each batch of 4 chunks
+// is ~2-3k tokens; a 5s delay between batches keeps us well under the cap.
+const CHUNK_BATCH_SIZE = 4
+const BATCH_DELAY_MS = 5000
 
 /**
  * Extracts time-bound obligations from a document's chunks.
@@ -56,6 +59,10 @@ export async function extractObligationsFromDocument(
       allObligations.push(...batchObligations)
     } catch (error) {
       console.error(`Obligation extraction failed for batch at chunk ${i}:`, error)
+    }
+    // Throttle to stay under free-tier rate limit (30k input tokens/min)
+    if (i + CHUNK_BATCH_SIZE < chunks.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS))
     }
   }
 
