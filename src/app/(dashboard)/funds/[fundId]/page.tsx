@@ -482,6 +482,47 @@ function DocumentsPanel({
 
 // ── Extraction panel ────────────────────────────────────────────────────
 
+// Shape of a term returned by /api/extract
+interface ExtractedTermResult {
+  termType: string
+  confidence: number
+  sourceClause: string | null
+  sourcePage: number | null
+  isMarketStandard: boolean | null
+  deviationNotes: string | null
+}
+
+// Shape of an obligation returned by /api/obligations
+interface ObligationResult {
+  description: string
+  category: string | null
+  priority: string
+  recurrence: string | null
+  responsibleParty: string | null
+}
+
+const TERM_LABELS: Record<string, string> = {
+  management_fee: 'Management Fee',
+  carried_interest: 'Carried Interest',
+  preferred_return: 'Preferred Return',
+  hurdle_rate: 'Hurdle Rate',
+  investment_period: 'Investment Period',
+  fund_term: 'Fund Term',
+  gp_commitment: 'GP Commitment',
+  key_person: 'Key Person Provision',
+  clawback: 'Clawback',
+  mfn_rights: 'MFN Rights',
+  no_fault_removal: 'No-Fault Removal',
+  excuse_exclusion: 'Excuse/Exclusion Rights',
+  distribution_waterfall: 'Distribution Waterfall',
+  reporting_obligation: 'Reporting Obligation',
+  fund_size_cap: 'Fund Size Cap',
+  recycling_provision: 'Recycling Provision',
+  co_investment_rights: 'Co-Investment Rights',
+  advisory_committee: 'Advisory Committee',
+  other: 'Other',
+}
+
 function ExtractionPanel({
   fundId,
   documents,
@@ -490,6 +531,8 @@ function ExtractionPanel({
   documents: Document[]
 }) {
   const [isExtracting, setIsExtracting] = useState(false)
+  const [terms, setTerms] = useState<ExtractedTermResult[]>([])
+  const [obligations, setObligations] = useState<ObligationResult[]>([])
   const readyDocs = documents.filter((d) => d.processing_status === 'ready')
 
   async function handleExtract(docId: string) {
@@ -507,6 +550,7 @@ function ExtractionPanel({
         return
       }
 
+      setTerms(data.terms ?? [])
       toast.success(`Extracted ${data.termsExtracted} terms`)
     } catch {
       toast.error('Extraction failed')
@@ -530,6 +574,7 @@ function ExtractionPanel({
         return
       }
 
+      setObligations(data.obligations ?? [])
       toast.success(`Extracted ${data.obligationsExtracted} obligations`)
     } catch {
       toast.error('Obligation extraction failed')
@@ -552,7 +597,8 @@ function ExtractionPanel({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      {/* Action buttons per document */}
       {readyDocs.map((doc) => (
         <Card key={doc.id}>
           <CardContent className="flex items-center justify-between py-3 px-4">
@@ -567,7 +613,7 @@ function ExtractionPanel({
                 onClick={() => handleExtract(doc.id)}
                 disabled={isExtracting}
               >
-                Extract Terms
+                {isExtracting ? 'Extracting…' : 'Extract Terms'}
               </Button>
               <Button
                 size="sm"
@@ -575,17 +621,97 @@ function ExtractionPanel({
                 onClick={() => handleExtractObligations(doc.id)}
                 disabled={isExtracting}
               >
-                Extract Obligations
+                {isExtracting ? 'Extracting…' : 'Extract Obligations'}
               </Button>
             </div>
           </CardContent>
         </Card>
       ))}
+
+      {/* Extracted terms */}
+      {terms.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Extracted Terms</CardTitle>
+          </CardHeader>
+          <CardContent className="divide-y divide-border">
+            {terms.map((t, i) => (
+              <div key={i} className="py-2.5 flex items-start justify-between gap-4">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-sm font-medium">{TERM_LABELS[t.termType] ?? t.termType}</p>
+                  {t.sourceClause && (
+                    <p className="text-xs text-muted-foreground">{t.sourceClause}{t.sourcePage ? ` · p.${t.sourcePage}` : ''}</p>
+                  )}
+                  {t.deviationNotes && (
+                    <p className="text-xs text-[var(--severity-high)]">{t.deviationNotes}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {t.isMarketStandard === false && (
+                    <Badge className="bg-[var(--severity-high)]/15 text-[var(--severity-high)] border-0 text-[10px]">
+                      Non-standard
+                    </Badge>
+                  )}
+                  {t.isMarketStandard === true && (
+                    <Badge className="bg-[var(--severity-success)]/15 text-[var(--severity-success)] border-0 text-[10px]">
+                      Market standard
+                    </Badge>
+                  )}
+                  <span className="text-xs text-muted-foreground">{Math.round(t.confidence * 100)}% conf.</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Extracted obligations */}
+      {obligations.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Obligations</CardTitle>
+          </CardHeader>
+          <CardContent className="divide-y divide-border">
+            {obligations.map((o, i) => (
+              <div key={i} className="py-2.5 flex items-start justify-between gap-4">
+                <p className="text-sm min-w-0">{o.description}</p>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {o.priority === 'critical' || o.priority === 'high' ? (
+                    <Badge className="bg-[var(--severity-high)]/15 text-[var(--severity-high)] border-0 text-[10px] capitalize">
+                      {o.priority}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] capitalize">{o.priority}</Badge>
+                  )}
+                  {o.responsibleParty && (
+                    <span className="text-xs text-muted-foreground uppercase">{o.responsibleParty}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
 
 // ── Risks panel ─────────────────────────────────────────────────────────
+
+interface RiskFlagResult {
+  category: string
+  severity: string
+  title: string
+  description: string
+  recommendation: string | null
+}
+
+const SEVERITY_STYLES: Record<string, string> = {
+  critical: 'bg-[var(--severity-critical)]/15 text-[var(--severity-critical)]',
+  high: 'bg-[var(--severity-high)]/15 text-[var(--severity-high)]',
+  medium: 'bg-[var(--severity-medium)]/15 text-[var(--severity-medium)]',
+  low: 'bg-[var(--severity-low)]/15 text-[var(--severity-low)]',
+}
 
 function RisksPanel({
   fundId,
@@ -595,6 +721,7 @@ function RisksPanel({
   documents: Document[]
 }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [flags, setFlags] = useState<RiskFlagResult[]>([])
   const readyDocs = documents.filter((d) => d.processing_status === 'ready')
 
   async function handleAnalyze(docId: string) {
@@ -612,6 +739,7 @@ function RisksPanel({
         return
       }
 
+      setFlags(data.flags ?? [])
       toast.success(`Generated ${data.flagsGenerated} risk flags`)
     } catch {
       toast.error('Risk analysis failed')
@@ -634,7 +762,7 @@ function RisksPanel({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {readyDocs.map((doc) => (
         <Card key={doc.id}>
           <CardContent className="flex items-center justify-between py-3 px-4">
@@ -648,11 +776,36 @@ function RisksPanel({
               onClick={() => handleAnalyze(doc.id)}
               disabled={isAnalyzing}
             >
-              Run Risk Analysis
+              {isAnalyzing ? 'Analyzing…' : 'Run Risk Analysis'}
             </Button>
           </CardContent>
         </Card>
       ))}
+
+      {/* Risk flags */}
+      {flags.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">{flags.length} Risk Flag{flags.length !== 1 ? 's' : ''} Identified</CardTitle>
+          </CardHeader>
+          <CardContent className="divide-y divide-border">
+            {flags.map((f, i) => (
+              <div key={i} className="py-3 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge className={`${SEVERITY_STYLES[f.severity] ?? ''} border-0 text-[10px] capitalize`}>
+                    {f.severity}
+                  </Badge>
+                  <p className="text-sm font-medium">{f.title}</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{f.description}</p>
+                {f.recommendation && (
+                  <p className="text-xs text-foreground/70 italic">Recommendation: {f.recommendation}</p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
