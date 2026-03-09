@@ -1,0 +1,357 @@
+{
+  "version": "1.0",
+  "description": "Golden test set for FundScope RAGAS evaluation. 50 PE fund domain questions across categories.",
+  "note": "expected_answer fields contain placeholder values. Populate with ground-truth answers after ingesting real PE fund documents.",
+  "questions": [
+    {
+      "id": "sl-01",
+      "category": "simple_lookup",
+      "question": "What is the management fee for this fund?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-02",
+      "category": "simple_lookup",
+      "question": "What is the carried interest percentage?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-03",
+      "category": "simple_lookup",
+      "question": "What is the preferred return or hurdle rate?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-04",
+      "category": "simple_lookup",
+      "question": "What is the fund term?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-05",
+      "category": "simple_lookup",
+      "question": "What is the investment period duration?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-06",
+      "category": "simple_lookup",
+      "question": "What is the GP commitment amount or percentage?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-07",
+      "category": "simple_lookup",
+      "question": "Who are the key persons named in the agreement?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-08",
+      "category": "simple_lookup",
+      "question": "Is there a clawback provision?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-09",
+      "category": "simple_lookup",
+      "question": "What are the MFN election rights?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-10",
+      "category": "simple_lookup",
+      "question": "Does the LPA include no-fault removal provisions?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-11",
+      "category": "simple_lookup",
+      "question": "What is the distribution waterfall structure?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-12",
+      "category": "simple_lookup",
+      "question": "What are the excuse and exclusion rights for LPs?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-13",
+      "category": "simple_lookup",
+      "question": "What is the hard cap or fund size cap?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-14",
+      "category": "simple_lookup",
+      "question": "Are there recycling provisions in the LPA?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "sl-15",
+      "category": "simple_lookup",
+      "question": "What reporting obligations does the GP have?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "cmp-01",
+      "category": "comparison",
+      "question": "How does the management fee compare across the uploaded documents?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-02",
+      "category": "comparison",
+      "question": "Compare the carried interest structures between the LPA and the side letter.",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-03",
+      "category": "comparison",
+      "question": "Which document has the most LP-favorable governance terms?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-04",
+      "category": "comparison",
+      "question": "Do the fee structures differ between the term sheet and the final LPA?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-05",
+      "category": "comparison",
+      "question": "Compare the key person provisions across all documents.",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-06",
+      "category": "comparison",
+      "question": "How do the reporting obligations differ between the LPA and the side letter?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-07",
+      "category": "comparison",
+      "question": "Compare the distribution waterfall between the two fund documents.",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-08",
+      "category": "comparison",
+      "question": "Which document provides stronger clawback protections for LPs?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-09",
+      "category": "comparison",
+      "question": "Are there any conflicts between the side letter terms and the LPA?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "cmp-10",
+      "category": "comparison",
+      "question": "Compare the GP commitment across all fund documents.",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "comparison"
+    },
+    {
+      "id": "mh-01",
+      "category": "multi_hop",
+      "question": "Does the side letter's MFN clause effectively override the LPA's management fee structure?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-02",
+      "category": "multi_hop",
+      "question": "If a key person event occurs, what obligations are triggered and within what timeframes?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-03",
+      "category": "multi_hop",
+      "question": "How does the management fee step-down interact with the investment period extension provisions?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-04",
+      "category": "multi_hop",
+      "question": "What happens to carried interest calculations if the GP is removed without cause?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-05",
+      "category": "multi_hop",
+      "question": "If an LP exercises excuse rights on a particular investment, how does that affect distribution waterfall calculations?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-06",
+      "category": "multi_hop",
+      "question": "What regulatory filings are required after a capital call, and what are the deadlines?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-07",
+      "category": "multi_hop",
+      "question": "How do the recycling provisions interact with the fund term extension?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-08",
+      "category": "multi_hop",
+      "question": "If the fund size reaches the hard cap, what co-investment rights do existing LPs retain?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-09",
+      "category": "multi_hop",
+      "question": "What LPAC consent requirements apply to transactions involving GP affiliates?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "mh-10",
+      "category": "multi_hop",
+      "question": "How does the clawback provision interact with the distribution waterfall in a loss scenario?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "ec-01",
+      "category": "edge_case",
+      "question": "What is the minimum commitment amount for new LPs joining after first close?",
+      "expected_answer": "[Populate after document ingestion — may not exist in document]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "ec-02",
+      "category": "edge_case",
+      "question": "Are there any ESG or responsible investment restrictions?",
+      "expected_answer": "[Populate after document ingestion — may not exist in document]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "ec-03",
+      "category": "edge_case",
+      "question": "What happens if both key persons leave simultaneously?",
+      "expected_answer": "[Populate after document ingestion — may require inference]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "ec-04",
+      "category": "edge_case",
+      "question": "Is the management fee calculated on committed or invested capital during the harvest period?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "ec-05",
+      "category": "edge_case",
+      "question": "What are the consequences of an LP defaulting on a capital call?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "ec-06",
+      "category": "edge_case",
+      "question": "Does the agreement address ERISA plan investor limitations?",
+      "expected_answer": "[Populate after document ingestion — may not exist in document]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "ec-07",
+      "category": "edge_case",
+      "question": "What provisions exist for dealing with sanctioned investors?",
+      "expected_answer": "[Populate after document ingestion — may not exist in document]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "ec-08",
+      "category": "edge_case",
+      "question": "Can the GP make investments in cryptocurrency or digital assets?",
+      "expected_answer": "[Populate after document ingestion — likely not addressed]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "ec-09",
+      "category": "edge_case",
+      "question": "What happens to unrealized investments at the end of the fund term with no extension?",
+      "expected_answer": "[Populate after document ingestion]",
+      "expected_query_type": "multi_hop"
+    },
+    {
+      "id": "ec-10",
+      "category": "edge_case",
+      "question": "Is there an indemnification cap for the GP?",
+      "expected_answer": "[Populate after document ingestion — may not exist in document]",
+      "expected_query_type": "simple_lookup"
+    },
+    {
+      "id": "gen-01",
+      "category": "general",
+      "question": "Hello, what can you help me with?",
+      "expected_answer": "I can help you analyze PE fund documents including LPAs, side letters, and term sheets. I provide term extraction, risk analysis, obligation tracking, and answer questions about your fund documents.",
+      "expected_query_type": "general"
+    },
+    {
+      "id": "gen-02",
+      "category": "general",
+      "question": "What is carried interest in private equity?",
+      "expected_answer": "Carried interest is the share of profits that the general partner receives as compensation, typically 20% of net profits above a preferred return hurdle rate.",
+      "expected_query_type": "general"
+    },
+    {
+      "id": "gen-03",
+      "category": "general",
+      "question": "Explain the difference between European and American waterfall structures.",
+      "expected_answer": "In a European (whole-fund) waterfall, carry is calculated on aggregate fund returns after all invested capital is returned. In an American (deal-by-deal) waterfall, carry is calculated on each individual investment's returns.",
+      "expected_query_type": "general"
+    },
+    {
+      "id": "gen-04",
+      "category": "general",
+      "question": "What does MFN mean in the context of side letters?",
+      "expected_answer": "MFN (Most Favored Nation) gives an LP the right to elect to receive any more favorable terms granted to other LPs in their side letters, subject to certain exclusions.",
+      "expected_query_type": "general"
+    },
+    {
+      "id": "gen-05",
+      "category": "general",
+      "question": "What are typical management fee ranges for PE funds?",
+      "expected_answer": "Typical management fees for PE funds range from 1.5% to 2.0% of committed capital during the investment period, often stepping down to 1.0%-1.5% of invested capital during the harvest period.",
+      "expected_query_type": "general"
+    }
+  ]
+}

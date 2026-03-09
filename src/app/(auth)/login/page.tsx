@@ -1,0 +1,105 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { toast } from 'sonner'
+
+export default function LoginPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        toast.error(error.message)
+        return
+      }
+
+      toast.success('Logged in successfully')
+      router.push('/')
+      router.refresh()
+    } catch {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="text-center space-y-1 pb-6">
+        <CardTitle className="heading-serif text-3xl">FundScope</CardTitle>
+        <CardDescription>
+          Sign in to your account to continue
+        </CardDescription>
+      </CardHeader>
+      <form onSubmit={handleLogin}>
+        <CardContent className="space-y-4 px-6">
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              Email
+            </label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium">
+              Password
+            </label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isLoading}
+              minLength={6}
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-3">
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Signing in...' : 'Sign in'}
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            Don&apos;t have an account?{' '}
+            <Link href="/signup" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </CardFooter>
+      </form>
+    </Card>
+  )
+}
